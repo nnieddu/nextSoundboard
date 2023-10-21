@@ -11,6 +11,17 @@ type FileData = {
   url: string;
   name: string;
 };
+interface MIDIMessageEvent extends Event {
+  data: Uint8Array;
+}
+
+interface MIDIInput {
+  onmidimessage: (event: MIDIMessageEvent) => void;
+}
+
+interface MyMIDIAccess {
+  inputs: Map<string, MIDIInput>;
+}
 
 type BoardProps = {
   isEditingKeybind: boolean;
@@ -30,6 +41,8 @@ const Board: React.FC<BoardProps> = ({
   const [keyBindings, setKeyBindings] = useState<{ [key: number]: string }>({});
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const itemsPerPage = 16;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage - 1;
 
   useEffect(() => {
     const savedFiles = localStorage.getItem("savedFiles");
@@ -49,17 +62,105 @@ const Board: React.FC<BoardProps> = ({
       usageElement.textContent = `${currentUsageMB.toFixed(2)} MB / ${MAX_SIZE_MB} MB`;
   }, [files]);
 
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  const handleMIDIMessage = (event: Event) => {
+    const message = event as MIDIMessageEvent;
+    const command = message.data[0];
+    const key = message.data[1];
+    const velocity = message.data[2];
 
-  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files)
-      Array.from(event.target.files).forEach((file, index) => {
+    if (velocity > 0) {
+      if (files.hasOwnProperty(key)) {
+        playSong(
+          currentAudio,
+          stopSongWhenAnOtherIsPlayed,
+          files[key].url,
+          key,
+          setPlayingIndex
+        );
+      }
+    }
+  };
+
+  useEffect(() => {
+    function onMIDISuccess(midiAccess: MyMIDIAccess | any) {
+      const inputs = Array.from(midiAccess.inputs.values());
+      if (inputs.length === 0) {
+        console.warn("No MIDI input devices available.");
+        return;
+      }
+
+      (inputs as MIDIInput[]).forEach((input) => {
+        input.onmidimessage = handleMIDIMessage;
+      });
+    }
+
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    } else {
+      console.warn("WebMIDI is not supported in this browser.");
+    }
+
+    function onMIDIFailure() {
+      console.warn("Could not access MIDI devices.");
+    }
+  });
+
+  useEffect(() => {
+    const handleGlobalKeyPress = (event: KeyboardEvent) => {
+      const key = event.key.toUpperCase();
+
+      if (key === "END") {
+        setStopSongWhenAnOtherIsPlayed(!stopSongWhenAnOtherIsPlayed);
+        return; // exit the function early after toggling the state
+      }
+
+      const currentPageKeyIndices = Object.keys(keyBindings)
+        .map((k) => parseInt(k, 10))
+        .filter((index) => index >= startIndex && index <= endIndex);
+
+      const indexStr = currentPageKeyIndices.find((k) => keyBindings[k] === key);
+
+      // Check if indexStr is found, convert it to a number, and check if it's within the current page range
+      if (indexStr) {
+        const index = Number(indexStr);
+        if (files.hasOwnProperty(index)) {
+          playSong(
+            currentAudio,
+            stopSongWhenAnOtherIsPlayed,
+            files[index].url,
+            index,
+            setPlayingIndex
+          );
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyPress);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyPress);
+    };
+  }, [
+    keyBindings,
+    files,
+    stopSongWhenAnOtherIsPlayed,
+    setStopSongWhenAnOtherIsPlayed,
+    startIndex,
+    endIndex,
+    currentPage,
+  ]);
+
+  const handleUpload = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    targetIndex: number
+  ) => {
+    if (event.target.files) {
+      Array.from(event.target.files).forEach((file) => {
         if (file) {
           const reader = new FileReader();
           reader.onloadend = () => {
             const fileData = { url: reader.result as string, name: file.name };
             setFiles((prev) => {
-              const newFiles = { ...prev, [index]: fileData };
+              const newFiles = { ...prev, [targetIndex]: fileData };
               localStorage.setItem("savedFiles", JSON.stringify(newFiles));
               return newFiles;
             });
@@ -67,6 +168,7 @@ const Board: React.FC<BoardProps> = ({
           reader.readAsDataURL(file);
         }
       });
+    }
   };
 
   const playSound = (index: number, src: string, event: MouseEvent<HTMLDivElement>) => {
@@ -94,39 +196,13 @@ const Board: React.FC<BoardProps> = ({
     setDragOver(null);
   };
 
-  useEffect(() => {
-    const handleGlobalKeyPress = (event: KeyboardEvent) => {
-      const key = event.key.toUpperCase();
-
-      if (key === "END") {
-        setStopSongWhenAnOtherIsPlayed(!stopSongWhenAnOtherIsPlayed);
-        return; // exit the function early after toggling the state
-      }
-
-      const indexStr = Object.keys(keyBindings).find(
-        (k) => keyBindings[parseInt(k, 10)] === key
-      );
-      // Check if indexStr is found and convert it to a number
-      if (indexStr) {
-        const index = Number(indexStr); // Convert the string to a number
-        // Now, check if this number index exists in files
-        if (files.hasOwnProperty(index)) {
-          playSong(
-            currentAudio,
-            stopSongWhenAnOtherIsPlayed,
-            files[index].url,
-            index,
-            setPlayingIndex
-          );
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleGlobalKeyPress);
-    return () => {
-      window.removeEventListener("keydown", handleGlobalKeyPress);
-    };
-  }, [keyBindings, files, stopSongWhenAnOtherIsPlayed, setStopSongWhenAnOtherIsPlayed]);
+  const handleKeyBinding = (index: number, key: string) => {
+    setKeyBindings((prev) => {
+      const updatedKeyBindings = { ...prev, [index]: key };
+      localStorage.setItem("keyBindings", JSON.stringify(updatedKeyBindings));
+      return updatedKeyBindings;
+    });
+  };
 
   const handleKeyDown = (index: number, event: React.KeyboardEvent<HTMLDivElement>) => {
     if (isEditingKeybind) {
@@ -161,16 +237,15 @@ const Board: React.FC<BoardProps> = ({
               onKeyDown={(e) => handleKeyDown(adjustedIndex, e)}
               tabIndex={0} // make the div focusable
             >
-              {keyBindings[adjustedIndex] ? (
+              {keyBindings[adjustedIndex] && (
                 <span className="keybind-display mt-2">{keyBindings[adjustedIndex]}</span>
-              ) : isEditingKeybind ? (
-                <span>Edit mode active</span>
-              ) : null}
+              )}
+              {isEditingKeybind && <span>Edit mode active</span>}
               {!isEditingKeybind && (
                 <input
                   type="file"
                   accept="audio/*"
-                  onChange={handleUpload}
+                  onChange={(e) => handleUpload(e, adjustedIndex)}
                   className="file-input"
                   multiple
                 />
