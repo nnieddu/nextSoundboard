@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: white;
+  box-sizing: border-box;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(150px, 1fr)
+  ); /* Adjust 150px to whatever minimum size you want for your items */
+  gap: 20px;
+  padding: 20px;
+}
+
+.grid-item {
+  background-color: #eaeaea;
+  position: relative;
+  padding-top: 100%;
+  border: 1px solid #ccc;
+  border-radius: 5%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.grid-item label {
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drag-over {
+  border: 2px dashed #000;
+}
+
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.playable {
+  @apply flex justify-center items-center text-center;
+  position: relative;
+  background-color: gray;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+}
+
+.playing {
+  border: 2px solid green;
+}
