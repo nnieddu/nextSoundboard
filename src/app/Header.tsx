@@ -2,12 +2,27 @@ import React from "react";
 
 type HeaderProps = {
   onEditKeybind: () => void;
+  stopSongWhenAnOtherIsPlayed: boolean;
+  setStopSongWhenAnOtherIsPlayed: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-const Header: React.FC<HeaderProps> = ({ onEditKeybind }) => {
+const Header: React.FC<HeaderProps> = ({
+  onEditKeybind,
+  stopSongWhenAnOtherIsPlayed,
+  setStopSongWhenAnOtherIsPlayed,
+}) => {
   return (
     <header className="header-container">
       <h1 className="border-b-2 border-black">Team Tech Soundboard</h1>
+      <label>
+        Stop song when another is played
+        <input
+          type="checkbox"
+          className="ml-2"
+          onClick={() => setStopSongWhenAnOtherIsPlayed(!stopSongWhenAnOtherIsPlayed)}
+          checked={stopSongWhenAnOtherIsPlayed}
+        />
+      </label>
       <button
         className="border-2 border-black hover:bg-white rounded"
         onClick={() => {

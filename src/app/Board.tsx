@@ -1,6 +1,11 @@
 "use client";
-import { useState, MouseEvent, useEffect } from "react";
-import { MAX_SIZE_MB, calculateLocalStorageSize, removeFileExtension } from "./utils.ts";
+import { useState, MouseEvent, useEffect, useRef } from "react";
+import {
+  MAX_SIZE_MB,
+  calculateLocalStorageSize,
+  playSong,
+  removeFileExtension,
+} from "./utils.ts";
 
 type FileData = {
   url: string;
@@ -9,19 +14,31 @@ type FileData = {
 
 type BoardProps = {
   isEditingKeybind: boolean;
+  stopSongWhenAnOtherIsPlayed: boolean;
+  setStopSongWhenAnOtherIsPlayed: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-const Board: React.FC<BoardProps> = ({ isEditingKeybind }) => {
+const Board: React.FC<BoardProps> = ({
+  isEditingKeybind,
+  stopSongWhenAnOtherIsPlayed,
+  setStopSongWhenAnOtherIsPlayed,
+}) => {
   const [files, setFiles] = useState<{ [key: number]: FileData }>({});
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [keyBindings, setKeyBindings] = useState<{ [key: number]: string }>({});
+  const currentAudio = useRef<HTMLAudioElement | null>(null);
   const itemsPerPage = 16;
 
   useEffect(() => {
     const savedFiles = localStorage.getItem("savedFiles");
     if (savedFiles) {
       setFiles(JSON.parse(savedFiles));
+    }
+    const savedKeyBindings = localStorage.getItem("keyBindings");
+    if (savedKeyBindings) {
+      setKeyBindings(JSON.parse(savedKeyBindings));
     }
   }, []);
 
@@ -54,13 +71,7 @@ const Board: React.FC<BoardProps> = ({ isEditingKeybind }) => {
 
   const playSound = (index: number, src: string, event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
-    setPlayingIndex(index);
-    const audio = new Audio(src);
-    audio.play();
-
-    audio.onended = () => {
-      setPlayingIndex(null);
-    };
+    playSong(currentAudio, stopSongWhenAnOtherIsPlayed, src, index, setPlayingIndex);
   };
 
   const handleDrop = (index: number, event: React.DragEvent<HTMLDivElement>) => {
@@ -83,6 +94,52 @@ const Board: React.FC<BoardProps> = ({ isEditingKeybind }) => {
     setDragOver(null);
   };
 
+  useEffect(() => {
+    const handleGlobalKeyPress = (event: KeyboardEvent) => {
+      const key = event.key.toUpperCase();
+
+      if (key === "END") {
+        setStopSongWhenAnOtherIsPlayed(!stopSongWhenAnOtherIsPlayed);
+        return; // exit the function early after toggling the state
+      }
+
+      const indexStr = Object.keys(keyBindings).find(
+        (k) => keyBindings[parseInt(k, 10)] === key
+      );
+      // Check if indexStr is found and convert it to a number
+      if (indexStr) {
+        const index = Number(indexStr); // Convert the string to a number
+        // Now, check if this number index exists in files
+        if (files.hasOwnProperty(index)) {
+          playSong(
+            currentAudio,
+            stopSongWhenAnOtherIsPlayed,
+            files[index].url,
+            index,
+            setPlayingIndex
+          );
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyPress);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyPress);
+    };
+  }, [keyBindings, files, stopSongWhenAnOtherIsPlayed, setStopSongWhenAnOtherIsPlayed]);
+
+  const handleKeyDown = (index: number, event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isEditingKeybind) {
+      event.preventDefault();
+      const key = event.key.toUpperCase();
+      setKeyBindings((prev) => {
+        const updatedKeyBindings = { ...prev, [index]: key };
+        localStorage.setItem("keyBindings", JSON.stringify(updatedKeyBindings));
+        return updatedKeyBindings;
+      });
+    }
+  };
+
   return (
     <div className="board-container">
       <div className="grid-container">
@@ -101,15 +158,23 @@ const Board: React.FC<BoardProps> = ({ isEditingKeybind }) => {
               }}
               onDragLeave={() => setDragOver(null)}
               onDrop={(e) => handleDrop(index, e)}
+              onKeyDown={(e) => handleKeyDown(adjustedIndex, e)}
+              tabIndex={0} // make the div focusable
             >
-              {isEditingKeybind ? <span>Edit mode active</span> : null}
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={handleUpload}
-                className="file-input"
-                multiple
-              />
+              {keyBindings[adjustedIndex] ? (
+                <span className="keybind-display mt-2">{keyBindings[adjustedIndex]}</span>
+              ) : isEditingKeybind ? (
+                <span>Edit mode active</span>
+              ) : null}
+              {!isEditingKeybind && (
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleUpload}
+                  className="file-input"
+                  multiple
+                />
+              )}
               {files[adjustedIndex] ? (
                 <div
                   onClick={(e) => playSound(adjustedIndex, files[adjustedIndex].url, e)}
@@ -118,7 +183,7 @@ const Board: React.FC<BoardProps> = ({ isEditingKeybind }) => {
                   <span>{removeFileExtension(files[adjustedIndex].name)}</span>
                 </div>
               ) : (
-                "Upload Sound"
+                <span className="mt-2">Upload Sound</span>
               )}
             </div>
           );
