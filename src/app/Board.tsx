@@ -1,6 +1,5 @@
 "use client";
-import Image from "next/image";
-import { useState, MouseEvent } from "react";
+import { useState, MouseEvent, useEffect } from "react";
 import { removeFileExtension } from "./utils.ts";
 
 type FileData = {
@@ -8,10 +7,25 @@ type FileData = {
   name: string;
 };
 
-const Board: React.FC = () => {
+type BoardProps = {
+  isEditingKeybind: boolean;
+};
+
+const Board: React.FC<BoardProps> = ({ isEditingKeybind }) => {
   const [files, setFiles] = useState<{ [key: number]: FileData }>({});
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 16;
+
+  useEffect(() => {
+    const savedFiles = localStorage.getItem("savedFiles");
+    if (savedFiles) {
+      setFiles(JSON.parse(savedFiles));
+    }
+  }, []);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
 
   const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files)
@@ -19,10 +33,12 @@ const Board: React.FC = () => {
         if (file) {
           const reader = new FileReader();
           reader.onloadend = () => {
-            setFiles((prev) => ({
-              ...prev,
-              [index]: { url: reader.result as string, name: file.name },
-            }));
+            const fileData = { url: reader.result as string, name: file.name };
+            setFiles((prev) => {
+              const newFiles = { ...prev, [index]: fileData };
+              localStorage.setItem("savedFiles", JSON.stringify(newFiles));
+              return newFiles;
+            });
           };
           reader.readAsDataURL(file);
         }
@@ -48,10 +64,12 @@ const Board: React.FC = () => {
     if (uploadedFile) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFiles((prev) => ({
-          ...prev,
-          [index]: { url: reader.result as string, name: uploadedFile.name },
-        }));
+        const fileData = { url: reader.result as string, name: uploadedFile.name };
+        setFiles((prev) => {
+          const newFiles = { ...prev, [index]: fileData };
+          localStorage.setItem("savedFiles", JSON.stringify(newFiles));
+          return newFiles;
+        });
       };
       reader.readAsDataURL(uploadedFile);
     }
@@ -59,39 +77,57 @@ const Board: React.FC = () => {
   };
 
   return (
-    <div className="grid-container">
-      {Array.from({ length: 16 }).map((_, index) => (
-        <div
-          key={index}
-          className={`grid-item ${dragOver === index ? "drag-over" : ""} ${
-            playingIndex === index ? "playing" : ""
-          }`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(index);
-          }}
-          onDragLeave={() => setDragOver(null)}
-          onDrop={(e) => handleDrop(index, e)}
-        >
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={handleUpload}
-            className="file-input"
-            multiple
-          />
-          {files[index] ? (
+    <div className="board-container">
+      <div className="grid-container">
+        {Array.from({ length: itemsPerPage }).map((_, index) => {
+          const adjustedIndex = startIndex + index;
+
+          return (
             <div
-              onClick={(e) => playSound(index, files[index].url, e)}
-              className="playable"
+              key={adjustedIndex}
+              className={`grid-item hover:bg-slate-300 ${
+                dragOver === index ? "drag-over" : ""
+              } ${playingIndex === index ? "playing" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(index);
+              }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={(e) => handleDrop(index, e)}
             >
-              <span>{removeFileExtension(files[index].name)}</span>
+              {isEditingKeybind ? <span>Edit mode active</span> : null}
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={handleUpload}
+                className="file-input"
+                multiple
+              />
+              {files[adjustedIndex] ? (
+                <div
+                  onClick={(e) => playSound(adjustedIndex, files[adjustedIndex].url, e)}
+                  className="playable"
+                >
+                  <span>{removeFileExtension(files[adjustedIndex].name)}</span>
+                </div>
+              ) : (
+                "Upload Sound"
+              )}
             </div>
-          ) : (
-            "Upload Sound"
-          )}
-        </div>
-      ))}
+          );
+        })}
+      </div>
+      <div className="pagination">
+        {[1, 2, 3, 4].map((pageNum) => (
+          <button
+            key={pageNum}
+            className={currentPage === pageNum ? "active" : ""}
+            onClick={() => setCurrentPage(pageNum)}
+          >
+            {pageNum}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
