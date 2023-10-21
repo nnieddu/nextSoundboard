@@ -5,6 +5,8 @@
 body {
   background: white;
   box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
 }
 
 .grid-container {
@@ -54,7 +56,7 @@ body {
 }
 
 .playable {
-  @apply flex justify-center items-center text-center;
+  @apply flex justify-center items-center text-center rounded;
   position: relative;
   background-color: gray;
   z-index: 10;

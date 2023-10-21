@@ -1,6 +1,6 @@
 "use client";
 import { useState, MouseEvent, useEffect } from "react";
-import { removeFileExtension } from "./utils.ts";
+import { MAX_SIZE_MB, calculateLocalStorageSize, removeFileExtension } from "./utils.ts";
 
 type FileData = {
   url: string;
@@ -24,6 +24,13 @@ const Board: React.FC<BoardProps> = ({ isEditingKeybind }) => {
       setFiles(JSON.parse(savedFiles));
     }
   }, []);
+
+  useEffect(() => {
+    const usageElement = document.getElementById("storageUsage");
+    const currentUsageMB = calculateLocalStorageSize();
+    if (usageElement)
+      usageElement.textContent = `${currentUsageMB.toFixed(2)} MB / ${MAX_SIZE_MB} MB`;
+  }, [files]);
 
   const startIndex = (currentPage - 1) * itemsPerPage;
 

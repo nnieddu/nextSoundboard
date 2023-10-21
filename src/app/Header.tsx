@@ -10,7 +10,10 @@ const Header: React.FC<HeaderProps> = ({ onEditKeybind }) => {
       <h1 className="border-b-2 border-black">Team Tech Soundboard</h1>
       <button
         className="border-2 border-black hover:bg-white rounded"
-        onClick={() => localStorage.removeItem("savedFiles")}
+        onClick={() => {
+          localStorage.removeItem("savedFiles");
+          location.reload();
+        }}
       >
         Remove all
       </button>
