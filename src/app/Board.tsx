@@ -107,11 +107,10 @@ const Board: React.FC<BoardProps> = ({
       const currentPageKeyIndices = Object.keys(keyBindings)
         .map((k) => parseInt(k, 10))
         .filter((index) => index >= startIndex && index <= endIndex);
-
       const indexStr = currentPageKeyIndices.find((k) => keyBindings[k] === key);
 
       // Check if indexStr is found, convert it to a number, and check if it's within the current page range
-      if (indexStr) {
+      if (indexStr !== undefined) {
         const index = Number(indexStr);
         if (files.hasOwnProperty(index)) {
           playSong(
