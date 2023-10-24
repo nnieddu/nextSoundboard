@@ -11,6 +11,10 @@ const Header: React.FC<HeaderProps> = ({
   stopSongWhenAnOtherIsPlayed,
   setStopSongWhenAnOtherIsPlayed,
 }) => {
+  const handleCheckboxChange = () => {
+    setStopSongWhenAnOtherIsPlayed(!stopSongWhenAnOtherIsPlayed);
+  };
+
   return (
     <header className="header-container">
       <h1 className="border-b-2 border-black">Team Tech Soundboard</h1>
@@ -19,7 +23,7 @@ const Header: React.FC<HeaderProps> = ({
         <input
           type="checkbox"
           className="ml-2"
-          onClick={() => setStopSongWhenAnOtherIsPlayed(!stopSongWhenAnOtherIsPlayed)}
+          onChange={handleCheckboxChange}
           checked={stopSongWhenAnOtherIsPlayed}
         />
       </label>
