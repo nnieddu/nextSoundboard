@@ -8,7 +8,11 @@ function getLocalIP() {
 
     for (let i = 0; i < iface.length; i++) {
       const alias = iface[i];
-      if (alias.family === "IPv4" && alias.address !== "127.0.0.1" && !alias.internal) {
+      if (
+        alias.family === "IPv4" &&
+        alias.address !== "127.0.0.1" &&
+        !alias.internal
+      ) {
         return alias.address;
       }
     }
@@ -17,5 +21,5 @@ function getLocalIP() {
 }
 
 const localIP = getLocalIP();
-console.log(`Starting dev server accessible at: http://${localIP}:3000`);
-exec("next dev -H 0.0.0.0");
+console.log(`Starting dev server accessible at: https://${localIP}:3000`);
+exec("next dev --experimental-https -H 0.0.0.0");
