@@ -7,8 +7,6 @@ import {
   removeFileExtension,
 } from "./utils.ts";
 
-import Midi from "./Midi.js";
-
 type FileData = {
   url: string;
   name: string;
@@ -31,16 +29,30 @@ const Board: React.FC<BoardProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [keyBindings, setKeyBindings] = useState<{ [key: number]: string }>({});
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const itemsPerPage = 16;
+  const itemsPerPage = 12;
+  const [selectedGridItemIndex, setSelectedGridItemIndex] = useState<
+    number | null
+  >(null);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage - 1;
 
   useEffect(() => {
     const savedFiles = localStorage.getItem("savedFiles");
     if (savedFiles) {
       setFiles(JSON.parse(savedFiles));
     }
+
     const savedKeyBindings = localStorage.getItem("keyBindings");
     if (savedKeyBindings) {
       setKeyBindings(JSON.parse(savedKeyBindings));
+    } else {
+      let initialKeyBindings = {};
+      for (let i = 0; i <= 12; i++) {
+        initialKeyBindings[i.toString()] = (i + 40).toString();
+      }
+      setKeyBindings(initialKeyBindings); // Set the state with an object, not a string
+      localStorage.setItem("keyBindings", JSON.stringify(initialKeyBindings)); // If you want to save this to local storage as well
     }
   }, []);
 
@@ -52,11 +64,6 @@ const Board: React.FC<BoardProps> = ({
         2
       )} MB / ${MAX_SIZE_MB} MB`;
   }, [files]);
-
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage - 1;
-
-  const midi = useMemo(() => new Midi(), []);
 
   const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files)
@@ -117,19 +124,6 @@ const Board: React.FC<BoardProps> = ({
     setDragOver(null);
   };
 
-  // useEffect(() => {
-  //   midi.setMidiMessageHandler((midiEvent: any, index: number) => {
-  //     const midiKey = midiEvent.data[1];
-  //     const key = midiKey.toString();
-  //     console.log(key);
-  //     setKeyBindings((prev) => {
-  //       const updatedKeyBindings = { ...prev, [index]: key };
-  //       localStorage.setItem("keyBindings", key);
-  //       return updatedKeyBindings;
-  //     });
-  //   });
-  // }, [midi]);
-
   useEffect(() => {
     const handleGlobalKeyPress = (event: KeyboardEvent) => {
       const key = event.key.toUpperCase();
@@ -173,14 +167,12 @@ const Board: React.FC<BoardProps> = ({
     startIndex,
     endIndex,
     currentPage,
-    midi,
   ]);
 
   const handleKeyDown = (
     index: number,
     event: React.KeyboardEvent<HTMLDivElement>
   ) => {
-    console.log("lol");
     if (isEditingKeybind) {
       event.preventDefault();
       const key = event.key.toUpperCase();
@@ -191,6 +183,67 @@ const Board: React.FC<BoardProps> = ({
       });
     }
   };
+
+  const handleMidiInput = (note: number, velocity: number) => {
+    // console.log(note);
+    if (isEditingKeybind && selectedGridItemIndex !== null) {
+      // Save note as keybinding for the selected grid item
+      setKeyBindings((prev) => {
+        console.log(prev);
+        console.log(selectedGridItemIndex);
+        const updatedKeyBindings = {
+          ...prev,
+          [selectedGridItemIndex]: note.toString(),
+        };
+        localStorage.setItem("keyBindings", JSON.stringify(updatedKeyBindings));
+        return updatedKeyBindings;
+      });
+      // Optionally, reset the selected grid item index after setting
+      setSelectedGridItemIndex(null);
+    } else if (velocity > 0) {
+      // Check if the note corresponds to a saved keybinding and play the song
+      const index = Object.keys(keyBindings).find(
+        (key) => keyBindings[key] === note.toString()
+      );
+      if (index && files.hasOwnProperty(index)) {
+        playSong(
+          currentAudio,
+          stopSongWhenAnOtherIsPlayed,
+          files[index].url,
+          parseInt(index, 10),
+          setPlayingIndex
+        );
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    } else {
+      console.log("WebMIDI is not supported in this browser.");
+    }
+
+    function onMIDIFailure() {
+      console.log("Could not access your MIDI devices.");
+    }
+
+    function onMIDISuccess(midiAccess: any) {
+      const inputs = midiAccess.inputs.values();
+      for (
+        let input = inputs.next();
+        input && !input.done;
+        input = inputs.next()
+      ) {
+        input.value.onmidimessage = onMIDIMessage;
+      }
+    }
+
+    function onMIDIMessage(event: any) {
+      const [status, note, velocity] = event.data;
+      handleMidiInput(note, velocity);
+    }
+  });
 
   return (
     <div className="board-container">
@@ -211,6 +264,9 @@ const Board: React.FC<BoardProps> = ({
               onDragLeave={() => setDragOver(null)}
               onDrop={(e) => handleDrop(index, e)}
               onKeyDown={(e) => handleKeyDown(adjustedIndex, e)}
+              onClick={() => {
+                setSelectedGridItemIndex(adjustedIndex);
+              }}
               tabIndex={0} // make the div focusable
             >
               {keyBindings[adjustedIndex] ? (
