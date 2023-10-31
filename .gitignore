@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/soundboard_backend/node_modules
 /.pnp
 .pnp.js
 
