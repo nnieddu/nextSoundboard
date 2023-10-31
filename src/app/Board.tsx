@@ -321,3 +321,65 @@ const Board: React.FC<BoardProps> = ({
 };
 
 export default Board;
+
+////////////////////////////////
+// import { useState, MouseEvent, useEffect } from "react";
+
+// // Define your Raspberry Pi server URL
+// const SERVER_URL = "https://192.168.2.71:3000/"; // Replace with your Pi's IP or hostname
+
+// // ...
+
+// const Board: React.FC<BoardProps> = ({ isEditingKeybind, stopSongWhenAnOtherIsPlayed, setStopSongWhenAnOtherIsPlayed }) => {
+//   // ...
+
+//   const playSoundOnPi = (index: number) => {
+//     // Send an HTTP POST request to play sound on Raspberry Pi
+//     fetch(`${SERVER_URL}/playSound`, {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//       },
+//       body: JSON.stringify({ index }),
+//     })
+//       .then((response) => {
+//         if (response.ok) {
+//           // Sound played successfully
+//           // Add your handling logic here
+//         } else {
+//           // Handle error
+//           console.error("Failed to play sound on Raspberry Pi");
+//         }
+//       })
+//       .catch((error) => {
+//         console.error("Error sending request:", error);
+//       });
+//   };
+
+//   // ...
+
+//   return (
+//     <div className="board-container">
+//       <div className="grid-container">
+//         {Array.from({ length: itemsPerPage }).map((_, index) => {
+//           // ...
+
+//           return (
+//             <div
+//               key={adjustedIndex}
+//               // ...
+//               onClick={() => {
+//                 setSelectedGridItemIndex(adjustedIndex);
+//                 playSoundOnPi(adjustedIndex); // Play sound on Raspberry Pi
+//               }}
+//               // ...
+//             >
+//               {/* ... */}
+//             </div>
+//           );
+//         })}
+//       </div>
+//       {/* ... */}
+//     </div>
+//   );
+// };
