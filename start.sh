@@ -6,4 +6,8 @@ trust 00:58:50:52:1A:4D
 connect 00:58:50:52:1A:4D
 EOF
 
-cd ./soundboard_backend && npm start && cd .. && npm run dev2
+cd ./soundboard_backend
+npm start &
+sleep 5
+cd ..
+npm run dev2
